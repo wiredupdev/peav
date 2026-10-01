@@ -829,6 +829,8 @@ $manager = new EavManager(
 
 Peav maintains 100% adherence to strict typing (`declare(strict_types=1)`), comprehensive PHPUnit integration and unit test suites, and strict PHPStan static analysis.
 
+### Running Tests Locally
+
 ```bash
 # Run unit and integration tests
 composer test
@@ -838,6 +840,18 @@ vendor/bin/phpunit
 # Run PHPStan static analysis (Level 8+)
 vendor/bin/phpstan analyse
 ```
+
+### DevContainer Environment
+
+A ready-to-use DevContainer configuration is included in `.devcontainer/` featuring:
+- **PHP 8.4 CLI** with `pdo_sqlite`, `pdo_mysql`, `pdo_pgsql`, `intl`, `zip`, and `pcov` code coverage driver.
+- **Composer 2.x**.
+- **Preconfigured Multi-Database Services**: Isolated MySQL 8.4 and PostgreSQL 16 containers ready for multi-engine integration tests.
+
+To start testing with DevContainers in PhpStorm or VS Code:
+1. Open the project in your IDE.
+2. Choose **Reopen in Container** / **Start Dev Container**.
+3. Run `composer test` or `vendor/bin/phpunit` inside the container terminal.
 
 ---
 

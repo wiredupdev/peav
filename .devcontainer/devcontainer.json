@@ -1,0 +1,13 @@
+{
+  "name": "Peav Test & Dev Environment (PHP 8.4)",
+  "dockerComposeFile": "compose.yaml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "developer",
+  "postCreateCommand": "composer install",
+  "customizations": {
+    "jetbrains": {
+      "plugins": []
+    }
+  }
+}
