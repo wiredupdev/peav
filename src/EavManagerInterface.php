@@ -18,6 +18,7 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Console\Command\Command;
+use WireUpDev\Peav\Caster\CasterRegistry;
 use WireUpDev\Peav\Flat\FlatConfig;
 use WireUpDev\Peav\Flat\FlatIndexerInterface;
 use WireUpDev\Peav\Flat\FlatStorageRegistry;
@@ -51,9 +52,14 @@ interface EavManagerInterface
     public function attributes(): AttributeRepositoryInterface;
 
     /**
-     * Returns the type registry for attribute types and casters.
+     * Returns the type registry for attribute types.
      */
     public function types(): TypeRegistry;
+
+    /**
+     * Returns the caster registry for managing type casters.
+     */
+    public function casters(): CasterRegistry;
 
     /**
      * Returns the database schema synchronizer.

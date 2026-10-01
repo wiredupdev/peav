@@ -62,7 +62,7 @@ class EavEntity
      */
     public function get(string $attribute, mixed $default = null): mixed
     {
-        return array_key_exists($attribute, $this->attributes) ? $this->attributes[$attribute] : $default;
+        return  $this->attributes[$attribute] ?? $default;
     }
 
     /**

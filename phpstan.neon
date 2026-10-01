@@ -4,4 +4,4 @@ parameters:
         - src
         - tests
     parallel:
-        maximumNumberOfProcesses: 1
+        maximumNumberOfProcesses: 3

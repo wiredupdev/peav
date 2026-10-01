@@ -18,6 +18,7 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Console\Command\Command;
+use WireUpDev\Peav\Caster\CasterRegistry;
 use WireUpDev\Peav\Command\PeavCommandProvider;
 use WireUpDev\Peav\Factory\CacheFactory;
 use WireUpDev\Peav\Factory\EventDispatcherFactory;
@@ -50,6 +51,7 @@ class EavManager implements EavManagerInterface
     private readonly EavRepositoryInterface $eavRepository;
     private readonly AttributeRepositoryInterface $attributeRepository;
     private readonly TypeRegistry $typeRegistry;
+    private readonly CasterRegistry $casterRegistry;
     private readonly SchemaSynchronizer $schemaSynchronizer;
     private readonly FlatStorageRegistry $flatStorageRegistry;
     private readonly FlatSynchronizer $flatSynchronizer;
@@ -74,10 +76,12 @@ class EavManager implements EavManagerInterface
         ?CacheInterface $cache = null,
         ?EventDispatcherInterface $eventDispatcher = null,
         ?LoggerInterface $logger = null,
+        ?CasterRegistry $casterRegistry = null,
     ) {
         $this->tableConfig = $tableConfig ?? new TableConfig();
         $this->flatConfig = $flatConfig ?? new FlatConfig();
         $this->typeRegistry = $typeRegistry ?? new TypeRegistry();
+        $this->casterRegistry = $casterRegistry ?? new CasterRegistry();
 
         $this->cache = $cache ?? CacheFactory::create();
         $this->eventDispatcher = $eventDispatcher ?? EventDispatcherFactory::create();
@@ -132,6 +136,7 @@ class EavManager implements EavManagerInterface
             $this->tableConfig,
             $this->eventDispatcher,
             $this->logger,
+            $this->casterRegistry,
         );
 
         $this->schemaSynchronizer = $schemaSynchronizer ?? new SchemaSynchronizer(
@@ -153,6 +158,7 @@ class EavManager implements EavManagerInterface
         ?LoggerInterface $logger = null,
         ?TableConfig $tableConfig = null,
         ?FlatConfig $flatConfig = null,
+        ?CasterRegistry $casterRegistry = null,
     ): self {
         return new self(
             connection: $connection,
@@ -161,6 +167,7 @@ class EavManager implements EavManagerInterface
             cache: $cache,
             eventDispatcher: $eventDispatcher,
             logger: $logger,
+            casterRegistry: $casterRegistry,
         );
     }
 
@@ -182,6 +189,11 @@ class EavManager implements EavManagerInterface
     public function types(): TypeRegistry
     {
         return $this->typeRegistry;
+    }
+
+    public function casters(): CasterRegistry
+    {
+        return $this->casterRegistry;
     }
 
     public function schema(): SchemaSynchronizer
@@ -241,6 +253,7 @@ class EavManager implements EavManagerInterface
             flatStorageRegistry: $this->flatStorageRegistry,
             eavRepository: $this->eavRepository,
             logger: $this->logger,
+            casterRegistry: $this->casterRegistry,
         );
     }
 

@@ -19,14 +19,7 @@ use Doctrine\DBAL\Types\Types;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use WireUpDev\Peav\Caster\BlobTypeCaster;
-use WireUpDev\Peav\Caster\BooleanTypeCaster;
-use WireUpDev\Peav\Caster\DateTimeTypeCaster;
-use WireUpDev\Peav\Caster\DecimalTypeCaster;
-use WireUpDev\Peav\Caster\IntegerTypeCaster;
-use WireUpDev\Peav\Caster\JsonTypeCaster;
-use WireUpDev\Peav\Caster\StringTypeCaster;
-use WireUpDev\Peav\Caster\TextTypeCaster;
+use WireUpDev\Peav\Caster\CasterRegistry;
 use WireUpDev\Peav\Caster\TypeCasterInterface;
 use WireUpDev\Peav\Event\EntityCreatedEvent;
 use WireUpDev\Peav\Event\EntityCreatingEvent;
@@ -52,10 +45,7 @@ class EavRepository implements EavRepositoryInterface
 {
     private readonly EventDispatcherInterface $eventDispatcher;
     private readonly LoggerInterface $logger;
-    /**
-     * @var array<string, TypeCasterInterface>
-     */
-    private array $casters = [];
+    private readonly CasterRegistry $casterRegistry;
 
     public function __construct(
         private readonly Connection $connection,
@@ -65,11 +55,11 @@ class EavRepository implements EavRepositoryInterface
         private readonly TableConfig $tableConfig = new TableConfig(),
         ?EventDispatcherInterface $eventDispatcher = null,
         ?LoggerInterface $logger = null,
+        ?CasterRegistry $casterRegistry = null,
     ) {
         $this->eventDispatcher = $eventDispatcher ?? new NullEventDispatcher();
         $this->logger = $logger ?? new NullLogger();
-
-        $this->initializeCasters();
+        $this->casterRegistry = $casterRegistry ?? new CasterRegistry();
     }
 
     public function createEntity(string $entityTypeCode, array $attributes = []): EavEntity
@@ -338,7 +328,7 @@ class EavRepository implements EavRepositoryInterface
 
             $type = $attrDef->getType();
             $bucket = $type->getStorageBucket();
-            $caster = $this->getCasterFor($bucket);
+            $caster = $this->casterRegistry->getForType($type);
 
             $dbValue = $caster->convertToDatabaseValue($rawValue, $type, $platform);
             $attrId = $this->getAttributeIdByCode($attrCode);
@@ -384,7 +374,6 @@ class EavRepository implements EavRepositoryInterface
 
         foreach (StorageBucket::cases() as $bucket) {
             $valTable = $this->tableConfig->getValueTableName($bucket);
-            $caster = $this->getCasterFor($bucket);
 
             try {
                 $rows = $this->connection->fetchAllAssociative(
@@ -403,6 +392,7 @@ class EavRepository implements EavRepositoryInterface
                     $entId = (int) $row['entity_id'];
                     $attrCode = (string) $row['attr_code'];
                     $type = $this->typeRegistry->resolve((string) $row['attr_type']);
+                    $caster = $this->casterRegistry->getForType($type);
 
                     $phpValue = $caster->convertToPHPValue($row['value'], $type, $platform);
 
@@ -422,22 +412,5 @@ class EavRepository implements EavRepositoryInterface
         $id = $this->connection->fetchOne(sprintf('SELECT id FROM %s WHERE code = ?', $table), [$code]);
 
         return $id !== false && $id !== null ? (int) $id : null;
-    }
-
-    private function getCasterFor(StorageBucket $bucket): TypeCasterInterface
-    {
-        return $this->casters[$bucket->value];
-    }
-
-    private function initializeCasters(): void
-    {
-        $this->casters[StorageBucket::String->value] = new StringTypeCaster();
-        $this->casters[StorageBucket::Integer->value] = new IntegerTypeCaster();
-        $this->casters[StorageBucket::Decimal->value] = new DecimalTypeCaster();
-        $this->casters[StorageBucket::DateTime->value] = new DateTimeTypeCaster();
-        $this->casters[StorageBucket::Boolean->value] = new BooleanTypeCaster();
-        $this->casters[StorageBucket::Text->value] = new TextTypeCaster();
-        $this->casters[StorageBucket::Json->value] = new JsonTypeCaster();
-        $this->casters[StorageBucket::Blob->value] = new BlobTypeCaster();
     }
 }

@@ -26,13 +26,13 @@ final readonly class DecimalTypeCaster implements TypeCasterInterface
         }
 
         if (is_numeric($value)) {
-            return (string) $value;
+            return is_string($value) ? $value : (string) (float) $value;
         }
 
         throw new InvalidAttributeValueException(sprintf('Value for attribute type "%s" must be numeric, %s given.', $type->getName(), get_debug_type($value)));
     }
 
-    public function convertToPHPValue(mixed $value, TypeInterface $type, AbstractPlatform $platform): string|float|null
+    public function convertToPHPValue(mixed $value, TypeInterface $type, AbstractPlatform $platform): ?string
     {
         if ($value === null) {
             return null;

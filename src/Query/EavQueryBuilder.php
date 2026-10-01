@@ -18,15 +18,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use WireUpDev\Peav\Caster\BlobTypeCaster;
-use WireUpDev\Peav\Caster\BooleanTypeCaster;
-use WireUpDev\Peav\Caster\DateTimeTypeCaster;
-use WireUpDev\Peav\Caster\DecimalTypeCaster;
-use WireUpDev\Peav\Caster\IntegerTypeCaster;
-use WireUpDev\Peav\Caster\JsonTypeCaster;
-use WireUpDev\Peav\Caster\StringTypeCaster;
-use WireUpDev\Peav\Caster\TextTypeCaster;
-use WireUpDev\Peav\Caster\TypeCasterInterface;
+use WireUpDev\Peav\Caster\CasterRegistry;
 use WireUpDev\Peav\Exception\EntityTypeNotFoundException;
 use WireUpDev\Peav\Flat\FlatConfig;
 use WireUpDev\Peav\Flat\FlatStorageRegistry;
@@ -59,11 +51,7 @@ class EavQueryBuilder
 
     private ?int $limit = null;
     private ?int $offset = null;
-
-    /**
-     * @var array<string, TypeCasterInterface>
-     */
-    private array $casters = [];
+    private readonly CasterRegistry $casterRegistry;
 
     public function __construct(
         private readonly Connection $connection,
@@ -75,11 +63,11 @@ class EavQueryBuilder
         private readonly ?FlatStorageRegistry $flatStorageRegistry = null,
         private readonly ?EavRepositoryInterface $eavRepository = null,
         ?LoggerInterface $logger = null,
+        ?CasterRegistry $casterRegistry = null,
     ) {
         $this->logger = $logger ?? new NullLogger();
         $this->joinAliasGenerator = new JoinAliasGenerator();
-
-        $this->initializeCasters();
+        $this->casterRegistry = $casterRegistry ?? new CasterRegistry();
     }
 
     public function whereAttribute(string $attributeCode, string $operator, mixed $value = null): self
@@ -694,17 +682,7 @@ class EavQueryBuilder
                 $column = 'e.' . $attrCode;
             } else {
                 if (!isset($joinedAttributes[$attrCode])) {
-                    $attr = $this->attributeRepository->getAttribute($attrCode);
-                    $bucket = $attr?->getType()->getStorageBucket() ?? StorageBucket::String;
-                    $valTable = $this->tableConfig->getValueTableName($bucket);
-
-                    $attrAlias = $this->joinAliasGenerator->getAttributeAlias($attrCode);
-                    $valAlias = $this->joinAliasGenerator->getValueAlias($attrCode);
-
-                    $attrParam = sprintf('code_%s', $attrAlias);
-                    $dbalQb->leftJoin('e', $attributesTable, $attrAlias, sprintf('%s.code = :%s', $attrAlias, $attrParam))
-                        ->leftJoin('e', $valTable, $valAlias, sprintf('%s.entity_id = e.id AND %s.attribute_id = %s.id', $valAlias, $valAlias, $attrAlias))
-                        ->setParameter($attrParam, $attrCode);
+                    $valAlias = $this->getAttributeValueAlias($attrCode, $dbalQb, $attributesTable);
 
                     $joinedAttributes[$attrCode] = $valAlias;
                 }
@@ -735,17 +713,7 @@ class EavQueryBuilder
             if ($order['isEntityProperty']) {
                 $column = 'e.' . $attrCode;
             } else {
-                $attr = $this->attributeRepository->getAttribute($attrCode);
-                $bucket = $attr?->getType()->getStorageBucket() ?? StorageBucket::String;
-                $valTable = $this->tableConfig->getValueTableName($bucket);
-
-                $attrAlias = $this->joinAliasGenerator->getAttributeAlias($attrCode);
-                $valAlias = $this->joinAliasGenerator->getValueAlias($attrCode);
-
-                $attrParam = sprintf('code_%s', $attrAlias);
-                $dbalQb->leftJoin('e', $attributesTable, $attrAlias, sprintf('%s.code = :%s', $attrAlias, $attrParam))
-                    ->leftJoin('e', $valTable, $valAlias, sprintf('%s.entity_id = e.id AND %s.attribute_id = %s.id', $valAlias, $valAlias, $attrAlias))
-                    ->setParameter($attrParam, $attrCode);
+                $valAlias = $this->getAttributeValueAlias($attrCode, $dbalQb, $attributesTable);
 
                 $column = sprintf('%s.value', $valAlias);
             }
@@ -767,7 +735,7 @@ class EavQueryBuilder
     }
 
     /**
-     * @param list<mixed> $values
+     * @param array<array-key, mixed> $values
      */
     private function bindArrayCondition(QueryBuilder $dbalQb, string $column, string $op, array $values, string $paramName): string
     {
@@ -777,7 +745,7 @@ class EavQueryBuilder
     }
 
     /**
-     * @param array<mixed> $values
+     * @param array<array-key, mixed> $values
      */
     private function bindBetweenCondition(QueryBuilder $dbalQb, string $column, array $values, string $paramName): string
     {
@@ -814,30 +782,14 @@ class EavQueryBuilder
         }
 
         $type = $attr->getType();
-        $bucket = $type->getStorageBucket();
-        $caster = $this->casters[$bucket->value] ?? null;
 
-        if ($caster !== null) {
-            try {
-                return $caster->convertToDatabaseValue($val, $type, $this->connection->getDatabasePlatform());
-            } catch (\Throwable) {
-                return $val;
-            }
+        try {
+            $caster = $this->casterRegistry->getForType($type);
+
+            return $caster->convertToDatabaseValue($val, $type, $this->connection->getDatabasePlatform());
+        } catch (\Throwable) {
+            return $val;
         }
-
-        return $val;
-    }
-
-    private function initializeCasters(): void
-    {
-        $this->casters[StorageBucket::String->value] = new StringTypeCaster();
-        $this->casters[StorageBucket::Integer->value] = new IntegerTypeCaster();
-        $this->casters[StorageBucket::Decimal->value] = new DecimalTypeCaster();
-        $this->casters[StorageBucket::DateTime->value] = new DateTimeTypeCaster();
-        $this->casters[StorageBucket::Boolean->value] = new BooleanTypeCaster();
-        $this->casters[StorageBucket::Text->value] = new TextTypeCaster();
-        $this->casters[StorageBucket::Json->value] = new JsonTypeCaster();
-        $this->casters[StorageBucket::Blob->value] = new BlobTypeCaster();
     }
 
     private function logExecution(string $decision, int $resultCount, float $duration): void
@@ -849,5 +801,27 @@ class EavQueryBuilder
             $duration,
             $resultCount,
         ));
+    }
+
+    /**
+     * @param string $attrCode
+     * @param QueryBuilder $dbalQb
+     * @param string $attributesTable
+     * @return string
+     */
+    private function getAttributeValueAlias(string $attrCode, QueryBuilder $dbalQb, string $attributesTable): string
+    {
+        $attr = $this->attributeRepository->getAttribute($attrCode);
+        $bucket = $attr?->getType()->getStorageBucket() ?? StorageBucket::String;
+        $valTable = $this->tableConfig->getValueTableName($bucket);
+
+        $attrAlias = $this->joinAliasGenerator->getAttributeAlias($attrCode);
+        $valAlias = $this->joinAliasGenerator->getValueAlias($attrCode);
+
+        $attrParam = sprintf('code_%s', $attrAlias);
+        $dbalQb->leftJoin('e', $attributesTable, $attrAlias, sprintf('%s.code = :%s', $attrAlias, $attrParam))
+            ->leftJoin('e', $valTable, $valAlias, sprintf('%s.entity_id = e.id AND %s.attribute_id = %s.id', $valAlias, $valAlias, $attrAlias))
+            ->setParameter($attrParam, $attrCode);
+        return $valAlias;
     }
 }

@@ -14,13 +14,17 @@ declare(strict_types=1);
 namespace WireUpDev\Peav\Tests\Integration;
 
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Platforms\AbstractPlatform;
 use PHPUnit\Framework\TestCase;
+use WireUpDev\Peav\Caster\TypeCasterInterface;
 use WireUpDev\Peav\EavManager;
 use WireUpDev\Peav\EavManagerInterface;
 use WireUpDev\Peav\Model\AttributeDefinition;
 use WireUpDev\Peav\Model\EntityTypeDefinition;
 use WireUpDev\Peav\Model\PresetAttribute;
 use WireUpDev\Peav\Type\AttributeType;
+use WireUpDev\Peav\Type\StorageBucket;
+use WireUpDev\Peav\Type\TypeInterface;
 
 class EavManagerTest extends TestCase
 {
@@ -119,5 +123,75 @@ class EavManagerTest extends TestCase
         $this->assertNotNull($id2);
         $this->manager->deleteById('product', $id2);
         $this->assertNull($this->manager->find('product', $id2));
+    }
+
+    public function testCustomCasterIntegration(): void
+    {
+        $this->manager->schema()->createSchema();
+
+        $customType = new class implements TypeInterface {
+            public function getName(): string
+            {
+                return 'currency_amount';
+            }
+
+            public function getStorageBucket(): StorageBucket
+            {
+                return StorageBucket::Decimal;
+            }
+
+            public function getDbalTypeName(): string
+            {
+                return 'decimal';
+            }
+        };
+
+        $customCaster = new class implements TypeCasterInterface {
+            public function convertToDatabaseValue(mixed $value, TypeInterface $type, AbstractPlatform $platform): ?string
+            {
+                if ($value === null) {
+                    return null;
+                }
+
+                // If passed formatted string like "$123.45", strip "$"
+                $clean = is_string($value) ? str_replace('$', '', $value) : (string) $value;
+
+                return (string) (float) $clean;
+            }
+
+            public function convertToPHPValue(mixed $value, TypeInterface $type, AbstractPlatform $platform): ?string
+            {
+                if ($value === null) {
+                    return null;
+                }
+
+                return '$' . number_format((float) $value, 2, '.', '');
+            }
+        };
+
+        $this->manager->types()->register($customType);
+        $this->manager->casters()->register('currency_amount', $customCaster);
+
+        $amountAttr = new AttributeDefinition('amount', $customType, 'Total Amount');
+        $this->manager->attributes()->saveAttribute($amountAttr);
+
+        $orderType = new EntityTypeDefinition(
+            code: 'order',
+            name: 'Order',
+            description: 'Customer Order',
+        );
+        $this->manager->attributes()->saveEntityType($orderType);
+
+        $order = $this->manager->createEntity('order', [
+            'amount' => '$250.00',
+        ]);
+        $this->manager->save($order);
+
+        $orderId = $order->getId();
+        $this->assertNotNull($orderId);
+
+        $loaded = $this->manager->find('order', $orderId);
+        $this->assertNotNull($loaded);
+        $this->assertSame('$250.00', $loaded->get('amount'));
     }
 }
