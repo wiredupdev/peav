@@ -848,10 +848,22 @@ A ready-to-use DevContainer configuration is included in `.devcontainer/` featur
 - **Composer 2.x**.
 - **Preconfigured Multi-Database Services**: Isolated MySQL 8.4 and PostgreSQL 16 containers ready for multi-engine integration tests.
 
-To start testing with DevContainers in PhpStorm or VS Code:
+#### Option A: Running from IDE (PhpStorm / VS Code)
 1. Open the project in your IDE.
 2. Choose **Reopen in Container** / **Start Dev Container**.
 3. Run `composer test` or `vendor/bin/phpunit` inside the container terminal.
+
+#### Option B: Running Headless via CLI (Linux / Terminal)
+```bash
+# Start background services and app container
+docker compose -f .devcontainer/compose.yaml up -d --build
+
+# Run PHPUnit test suite
+docker compose -f .devcontainer/compose.yaml exec app composer test
+
+# Or run tests directly on-demand in a temporary container without up -d
+docker compose -f .devcontainer/compose.yaml run --rm app composer test
+```
 
 ---
 

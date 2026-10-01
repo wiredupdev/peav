@@ -37,6 +37,11 @@
   "bin": [
     "bin/peav"
   ],
+  "scripts": {
+    "test": "vendor/bin/phpunit",
+    "test:coverage": "vendor/bin/phpunit --coverage-text",
+    "phpstan": "vendor/bin/phpstan analyse"
+  },
   "config": {
     "sort-packages": true,
     "allow-plugins": {}
