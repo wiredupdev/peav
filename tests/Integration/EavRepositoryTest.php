@@ -163,6 +163,7 @@ final class EavRepositoryTest extends TestCase
 
         // 3. Load entity
         $entityId = $entity->getId();
+        //@phpstan-ignore staticMethod.alreadyNarrowedType
         self::assertNotNull($entityId);
         $loaded = $eavRepo->find('product', $entityId);
         self::assertNotNull($loaded);

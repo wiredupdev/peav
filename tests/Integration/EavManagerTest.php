@@ -93,8 +93,8 @@ class EavManagerTest extends TestCase
         $found = $this->manager->find('product', $item1->getId());
         $this->assertNotNull($found);
         $this->assertSame('PROD-101', $found->get('sku'));
-        $this->assertSame(99.90, (float) $found->get('price'));
-        $this->assertTrue((bool) $found->get('in_stock'));
+        $this->assertSame(99.90, (float)$found->get('price'));
+        $this->assertTrue((bool)$found->get('in_stock'));
 
         // 7. Find Multiple Entities
         $many = $this->manager->findMany('product', [$item1->getId(), $item2->getId()]);
@@ -113,13 +113,17 @@ class EavManagerTest extends TestCase
         $this->assertNotEmpty($commands);
         $this->assertCount(7, $commands);
 
+
         // 10. Delete Entity
         $id1 = $item1->getId();
+        //@phpstan-ignore method.alreadyNarrowedType
         $this->assertNotNull($id1);
         $this->manager->delete($item1);
         $this->assertNull($this->manager->find('product', $id1));
 
+
         $id2 = $item2->getId();
+        //@phpstan-ignore method.alreadyNarrowedType
         $this->assertNotNull($id2);
         $this->manager->deleteById('product', $id2);
         $this->assertNull($this->manager->find('product', $id2));
@@ -154,9 +158,9 @@ class EavManagerTest extends TestCase
                 }
 
                 // If passed formatted string like "$123.45", strip "$"
-                $clean = is_string($value) ? str_replace('$', '', $value) : (string) $value;
+                $clean = is_string($value) ? str_replace('$', '', $value) : (string)$value;
 
-                return (string) (float) $clean;
+                return (string)(float)$clean;
             }
 
             public function convertToPHPValue(mixed $value, TypeInterface $type, AbstractPlatform $platform): ?string
@@ -165,7 +169,7 @@ class EavManagerTest extends TestCase
                     return null;
                 }
 
-                return '$' . number_format((float) $value, 2, '.', '');
+                return '$' . number_format((float)$value, 2, '.', '');
             }
         };
 

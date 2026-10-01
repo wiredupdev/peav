@@ -148,6 +148,7 @@ final class FlatTableIndexerTest extends TestCase
 
         // Check custom document store
         self::assertArrayHasKey('10', $documentStore);
+        //@phpstan-ignore offsetAccess.notFound
         self::assertSame('LAPTOP-10', $documentStore['10']['sku']);
 
         // Remove entity
