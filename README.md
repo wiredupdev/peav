@@ -4,7 +4,7 @@
 [![Doctrine DBAL](https://img.shields.io/badge/doctrine--dbal-%5E4.0-E28227.svg)](https://www.doctrine-project.org/projects/dbal.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Type Coverage](https://img.shields.io/badge/PHPStan-Level%208%2B-brightgreen.svg)](phpstan.neon)
-[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](phpunit.xml.dist)
+[![Tests](https://github.com/wiredupdev/peav/actions/workflows/tests.yml/badge.svg)](https://github.com/wiredupdev/peav/actions/workflows/tests.yml)
 
 ![Static Badge](https://img.shields.io/badge/_experimental-yellow?label=stability&color=%23EEAD2D)
 
